@@ -59,7 +59,7 @@
         "descritpion": "Type of authentication "
       },
       "allowedValues": [
-        "sshPublicKey",
+        
         "password"
       ],
       "defaultValue": "password"
@@ -91,12 +91,7 @@
           "description": "The version of the loaded NSv image"
       }
   },
-    "managementAccessIPSource": {
-      "type": "string",
-      "metadata": {
-        "description": "Public IP address allowed access SonicWall NSv HTTPS & SSH management "
-      }
-    },
+ 
     "vmSize": {
       "type": "string",
       "allowedValues": [
@@ -115,7 +110,7 @@
       "metadata": {
         "artifactsBaseUrl": ""
       },
-      "defaultValue": "https://raw.githubusercontent.com/sonicwall/sonicwall-nsv-azure-templates/master/HA-LoadBalancer"
+      "defaultValue": "https://raw.githubusercontent.com/sajipoochira/SonicWall-Azure/master/HA-LoadBalancer"
     },
     "virtualNetworkNewOrExisting": {
       "type": "string",
@@ -173,54 +168,9 @@
         "description": "LAN (X0) subnet CIDR"
       }
     },
-    "publicIpNewOrExisting": {
-      "type": "string",
-      "defaultValue": "new",
-      "metadata": {
-        "description": "Determines whether or not a new public ip should be provisioned."
-      }
-    },
-    "publicIpName": {
-      "type": "string",
-      "defaultValue": "PublicIp",
-      "metadata": {
-        "description": "Name of the public ip address"
-      }
-    },
-    "publicIpDns": {
-      "type": "string",
-      "defaultValue": "[concat('sonicwall-nsv-', uniqueString(resourceGroup().id))]",
-      "metadata": {
-        "description": "DNS of the public ip address for the VM"
-      }
-    },
-    "publicIpResourceGroupName": {
-      "type": "string",
-      "defaultValue": "[resourceGroup().name]",
-      "metadata": {
-        "description": "Name of the resource group for the public ip address"
-      }
-    },
-    "publicIpAllocationMethod": {
-      "type": "string",
-      "defaultValue": "Static",
-      "allowedValues": [
-        "Static"
-      ],
-      "metadata": {
-        "description": "Allocation method for the public ip address"
-      }
-    },
-    "publicIpSku": {
-      "type": "string",
-      "defaultValue": "Standard",
-      "allowedValues": [
-        "Standard"
-      ],
-      "metadata": {
-        "description": "Name of the resource group for the public ip address"
-      }
-    },
+
+  
+   
     "createInternalLoadBalancer": {
       "type": "string",
       "defaultValue": "No",
@@ -244,17 +194,14 @@
     "vm2Name": "[concat(parameters('vmName'), '-HA2')]",
     "vm1NicName": "[concat(variables('vm1Name'), '-interface')]",
     "vm2NicName": "[concat(variables('vm2Name'), '-interface')]",
-    "publicIPAddressType": "Dynamic",
+    
     "nsgname-mgmt": "[concat(parameters('vmName'), '-NSG')]",
-    "availabilitySetName": "[concat(parameters('vmName'), '-AvSet')]",
-    "publicIpAddressId": "[resourceId(parameters('publicIpResourceGroupName'), 'Microsoft.Network/publicIPAddresses', parameters('publicIpName'))]",
-    "elbName": "[concat(parameters('vmName'), '-ELB')]",
-    "elbID": "[resourceId('Microsoft.Network/loadBalancers',variables('elbName'))]",
-    "elbPoolID": "[concat(variables('elbID'),'/backendAddressPools/BackendPool1')]",
-    "elbProbeID": "[concat(variables('elbID'),'/probes/tcpProbe')]",
-    "elbFrontEndIPConfigID": "[concat(variables('elbID'),'/frontendIPConfigurations/LoadBalancerFrontEnd')]",
+    "availabilityZone1": "1",
+    "availabilityZone2": "2",
+    
+    
     "ilbTemplateUrl": "[concat(parameters('baseUrl'), '/append-internal-lb.json')]",
-    "vmTemplateUrl": "[concat(parameters('baseUrl'), '/virtual-machine-', parameters('authenticationType'),'.json')]"
+    "vmTemplateUrl": "[concat(parameters('baseUrl'), '/virtual-machine-', parameters('authenticationType'),'-AZ','.json')]"
   },
   "resources": [
     {
@@ -268,35 +215,8 @@
         "name": "[parameters('storageAccountType')]"
       }
     },
-    {
-      "type": "Microsoft.Compute/availabilitySets",
-      "name": "[variables('availabilitySetName')]",
-      "apiVersion": "2018-10-01",
-      "location": "[parameters('location')]",
-      "properties": {
-        "platformFaultDomainCount": 2,
-        "platformUpdateDomainCount": 5
-      },
-      "sku": {
-        "name": "Aligned"
-      }
-    },
-    {
-      "condition": "[equals(parameters('publicIpNewOrExisting'), 'new')]",
-      "type": "Microsoft.Network/publicIPAddresses",
-      "apiVersion": "2018-04-01",
-      "name": "[parameters('publicIpName')]",
-      "location": "[parameters('location')]",
-      "sku": {
-        "name": "[parameters('publicIpSku')]"
-      },
-      "properties": {
-        "publicIPAllocationMethod": "[parameters('publicIpAllocationMethod')]",
-        "dnsSettings": {
-          "domainNameLabel": "[parameters('publicIpDns')]"
-        }
-      }
-    },
+  
+    
     {
       "condition": "[equals(parameters('virtualNetworkNewOrExisting'), 'new')]",
       "type": "Microsoft.Network/virtualNetworks",
@@ -453,93 +373,7 @@
         ]
       }
     },
-    {
-      "apiVersion": "2018-11-01",
-      "name": "[variables('elbName')]",
-      "type": "Microsoft.Network/loadBalancers",
-      "location": "[resourceGroup().location]",
-      "dependsOn": [
-        "[concat('Microsoft.Network/publicIPAddresses/', parameters('publicIpName'))]"
-      ],
-      "sku": {
-        "name": "Standard"
-      },
-      "properties": {
-        "frontendIPConfigurations": [
-          {
-            "name": "LoadBalancerFrontEnd",
-            "properties": {
-              "publicIPAddress": {
-                "id": "[variables('publicIpAddressId')]"
-              }
-            }
-          }
-        ],
-        "backendAddressPools": [
-          {
-            "name": "BackendPool1"
-          }
-        ],
-        "inboundNatRules": [
-          {
-            "name": "HTTPS-FW-HA1",
-            "properties": {
-              "frontendIPConfiguration": {
-                "id": "[variables('elbFrontEndIPConfigID')]"
-              },
-              "protocol": "Tcp",
-              "frontendPort": 8443,
-              "backendPort": 443,
-              "enableFloatingIP": false
-            }
-          },
-          {
-            "name": "HTTPS-FW-HA2",
-            "properties": {
-              "frontendIPConfiguration": {
-                "id": "[variables('elbFrontEndIPConfigID')]"
-              },
-              "protocol": "Tcp",
-              "frontendPort": 8444,
-              "backendPort": 443,
-              "enableFloatingIP": false
-            }
-          }
-        ],
-        "loadBalancingRules": [
-          {
-            "name": "ELBRule",
-            "properties": {
-              "frontendIPConfiguration": {
-                "id": "[variables('elbFrontEndIPConfigID')]"
-              },
-              "backendAddressPool": {
-                "id": "[variables('elbPoolID')]"
-              },
-              "protocol": "Tcp",
-              "frontendPort": 3389,
-              "backendPort": 3389,
-              "enableFloatingIP": false,
-              "idleTimeoutInMinutes": 5,
-              "probe": {
-                "id": "[variables('elbProbeID')]"
-              }
-            }
-          }
-        ],
-        "probes": [
-          {
-            "name": "tcpProbe",
-            "properties": {
-              "protocol": "Tcp",
-              "port": 443,
-              "intervalInSeconds": 5,
-              "numberOfProbes": 2
-            }
-          }
-        ]
-      }
-    },
+   
     {
       "apiVersion": "2018-04-01",
       "type": "Microsoft.Network/networkInterfaces",
@@ -547,7 +381,7 @@
       "location": "[parameters('location')]",
       "dependsOn": [
         "[parameters('virtualNetworkName')]",
-        "[variables('elbName')]",
+        
         "[variables('nsgname-mgmt')]"
       ],
       "tags": {
@@ -562,17 +396,8 @@
               "privateIPAllocationMethod": "Dynamic",
               "subnet": {
                 "id": "[resourceId(parameters('virtualNetworkResourceGroupName'), 'Microsoft.Network/virtualNetworks/subnets/', parameters('virtualNetworkName'), parameters('subnetWANName'))]" 
-              },
-              "loadBalancerBackendAddressPools": [
-                {
-                  "id": "[concat(variables('elbID'), '/backendAddressPools/BackendPool1')]"
-                }
-              ],
-              "loadBalancerInboundNatRules": [
-                {
-                  "id": "[concat(variables('elbID'),'/inboundNatRules/HTTPS-FW-HA1')]"
-                }
-              ]
+              }
+             
             }
           }
         ]
@@ -611,7 +436,7 @@
       "location": "[parameters('location')]",
       "dependsOn": [
         "[parameters('virtualNetworkName')]",
-        "[variables('elbName')]",
+        
         "[variables('nsgname-mgmt')]"
       ],
       "tags": {
@@ -626,17 +451,7 @@
               "privateIPAllocationMethod": "Dynamic",
               "subnet": {
                 "id": "[resourceId(parameters('virtualNetworkResourceGroupName'), 'Microsoft.Network/virtualNetworks/subnets/', parameters('virtualNetworkName'), parameters('subnetWANName'))]" 
-              },
-              "loadBalancerBackendAddressPools": [
-                {
-                  "id": "[concat(variables('elbID'), '/backendAddressPools/BackendPool1')]"
-                }
-              ],
-              "loadBalancerInboundNatRules": [
-                {
-                  "id": "[concat(variables('elbID'),'/inboundNatRules/HTTPS-FW-HA2')]"
-                }
-              ]
+              }
             }
           }
         ]
@@ -674,7 +489,7 @@
       "apiVersion": "2018-05-01",
       "dependsOn": [
         "[parameters('storageAccount')]",
-        "[concat('Microsoft.Compute/availabilitySets/', variables('availabilitySetName'))]",
+        "[concat('Microsoft.Compute/availabilitySets/', variables('availabilityZone1'))]",
         "[concat('Microsoft.Network/networkInterfaces/', variables('vm1NicName'), '-X1')]",
         "[concat('Microsoft.Network/networkInterfaces/', variables('vm1NicName'), '-X0')]"
       ],
@@ -718,8 +533,8 @@
           "storageAccount": {
             "value": "[parameters('storageAccount')]"
           },
-          "availabilitySetName": {
-            "value": "[variables('availabilitySetName')]"
+          "availabilityZone": {
+            "value": "[variables('availabilityZone1')]"
           },
           "sshKey": {
             "value": "[parameters('sshKey')]"
@@ -733,7 +548,7 @@
       "apiVersion": "2018-05-01",
       "dependsOn": [
         "[parameters('storageAccount')]",
-        "[concat('Microsoft.Compute/availabilitySets/', variables('availabilitySetName'))]",
+        
         "[concat('Microsoft.Network/networkInterfaces/', variables('vm2NicName'), '-X1')]",
         "[concat('Microsoft.Network/networkInterfaces/', variables('vm2NicName'), '-X0')]"
       ],
@@ -777,8 +592,8 @@
           "storageAccount": {
             "value": "[parameters('storageAccount')]"
           },
-          "availabilitySetName": {
-            "value": "[variables('availabilitySetName')]"
+          "availabilityZone": {
+            "value": "[variables('availabilityZone2')]"
           },
           "sshKey": {
             "value": "[parameters('sshKey')]"
